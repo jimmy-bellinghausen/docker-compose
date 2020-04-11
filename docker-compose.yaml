@@ -1,0 +1,70 @@
+# The Docker Config version. Do not change.
+version: "3"
+services:
+  mysqldb:
+    image: mysql:8
+    container_name: appdb
+    volumes:
+      - myappdata:/var/lib/mysql
+    networks:
+      - myappnetwork
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: myapp_db
+      # Create user; requires a new volume. Will not create on existing volumes.
+      MYSQL_USER: docker
+      MYSQL_PASSWORD: password
+    ports:
+    # Map local port 3307 to container port 3306 to prevent conflict with local MySQL
+      - "3307:3306"
+  reviews:
+    image: jaktau/review-service:latest
+    container_name: appservice_name
+    environment:
+      DB_NAME: myapp_db
+      DB_USER: docker
+      DB_PASSWORD: password
+    depends_on:
+      - mysqldb
+    deploy:
+      replicas: 5
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 50M
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "8080:8080"
+    networks:
+      - myappnetwork
+      # Movies here
+  movies:
+    image: jaktau/movie-service:latest
+    container_name: movieservice_name
+    environment:
+      DB_NAME: myapp_db
+      DB_USER: docker
+      DB_PASSWORD: password
+    depends_on:
+      - mysqldb
+    deploy:
+      replicas: 5
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 50M
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "9090:9090"
+    networks:
+      - myappnetwork
+# Persists data across deployments so data isn't lost
+volumes:
+  myappdata:
+    driver: local
+# Defines a shared network for all services to connect them and share data
+networks:
+  myappnetwork:
